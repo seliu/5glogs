@@ -1,16 +1,31 @@
-import numpy as np
 from pathlib import Path
+from typing import Sequence
+import numpy as np
+import pandas as pd
 
 # LOG_LENGTH = 5480 # len(max(logs_list, key=len)) == 5480
 LOG_LENGTH = 2560 # for hangover dataset
 
 class QmdlLogsHelper:
-    def __init__(self, logs_filepath: Path):
-        with logs_filepath.open("rb") as f:
-            logs = f.read()
-            self.logs_list = self.clean_and_split(logs)
-            self.logs_float = self.to_float_array(self.logs_list)
-            self.labels_array = self.get_detach_request_labels_array()
+    def __init__(self, qmdl_paths: Sequence[Path]):
+        self.logs_list = []
+        self.logs_len_list = []
+        for qmdl_path in qmdl_paths:
+            with qmdl_path.open("rb") as f:
+                logs_bytes = f.read()
+                logs_list = self.clean_and_split(logs_bytes)
+                self.logs_list.extend(logs_list)
+                logs_len_list = [len(l) for l in logs_list]
+                self.logs_len_list.extend(logs_len_list)
+
+        # self.logs_float = self.to_float_array(self.logs_list)
+        # self.labels_array = self.get_detach_request_labels_array()
+        self.df_logs = pd.DataFrame({
+            'log': self.logs_list,
+            'log_len': self.logs_len_list,
+            'hangover_start': [0]*len(self.logs_list),
+        })
+        self.df_logs = self.label_hangover_start(self.df_logs)
 
     def clean_and_split(self, logs: bytes) -> list:
         # raw logs -> logs list
@@ -19,12 +34,20 @@ class QmdlLogsHelper:
         logs_list = logs.split(b'\x7e')
         return logs_list
 
+    def label_hangover_start(self, df_logs: pd.core.frame.DataFrame) -> pd.core.frame.DataFrame:
+        for i, log in enumerate(df_logs['log']):
+            if log[0:1] == b'\x60' and (a := b'\x74') in log:
+                id1 = log.index(a)
+                if (id2 := id1 + 1) < len(log) and (nxt := log[id2] & b'\x0f'[0]) == b'\x0c'[0]:
+                    df_logs.at[i, 'hangover_start'] = 1
+        return df_logs
+
     def to_float_array(self, logs_list: list) -> np.ndarray:
         # bytes -> uint8
         logs_uint8_list = [np.frombuffer(log, dtype=np.int8) for log in logs_list]
 
         # uint8 -> float
-        logs_float_array = np.zeros([len(logs_list), LOG_LENGTH], dtype=np.float32) 
+        logs_float_array = np.zeros([len(logs_list), LOG_LENGTH], dtype=np.float32)
         for i, log in enumerate(logs_uint8_list):
             if len(log) > LOG_LENGTH:
                 logs_float_array[i][:LOG_LENGTH] = log[:LOG_LENGTH]
