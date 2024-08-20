@@ -4,7 +4,8 @@ import numpy as np
 import pandas as pd
 
 # LOG_LENGTH = 5480 # len(max(logs_list, key=len)) == 5480
-LOG_LENGTH = 2560 # for hangover dataset
+# LOG_LENGTH = 2560 # for hangover dataset
+LOG_LENGTH = 100 # for hangover dataset 2
 
 class QmdlLogsHelper:
     def __init__(self, qmdl_paths: Sequence[Path]):
@@ -103,4 +104,36 @@ class QmdlLogsHelper:
         positive_data = [np.array([k-chunk_size, k, 1]) for k in ho_start_logs.keys()]
         negative_data = [np.array([k-chunk_size, k, 0]) for k in negative_logs_keys]
         data = np.vstack([positive_data, negative_data])
+        return data
+
+    def sample_negative_ho_start_id(self, hostart_id_list, width: int = 100):
+        id_fine = False
+        while id_fine is False:
+            idx = np.random.randint(0, len(self.df_logs))
+            for i in hostart_id_list:
+                w = width * 1.5
+                if i - width <= idx <= i + width:
+                    id_fine = False
+                    break
+            id_fine = True
+        return idx
+
+    def get_dataset_ho_2(self, chunk_size: int = 100, negative_ratio: int = 1):
+        df_hostart = self.df_logs[self.df_logs.hangover_start == 1] # hangover start
+
+        # positive_ids = []
+        # for k in df_hostart.index:
+        #     positive_ids.append([i for i in range(k-chunk_size, k)])
+        negative_logs_keys = []
+        # negative_ids = []
+        for _ in range(len(df_hostart) * negative_ratio):
+            k = self.sample_negative_ho_start_id(df_hostart.index, width=chunk_size)
+            negative_logs_keys.append(k)
+            # negative_ids.append([i for i in range(k-chunk_size, k)])
+        assert len(negative_logs_keys) == len(df_hostart) * negative_ratio
+        
+        # 3 entries per data: start_id, end_id, label
+        positive_data = [np.array([k-chunk_size, k, 1]) for k in df_hostart.index]
+        negative_data = [np.array([k-chunk_size, k, 0]) for k in negative_logs_keys]
+        data = np.vstack([positive_data, negative_data]) if negative_data else np.stack(positive_data)
         return data
