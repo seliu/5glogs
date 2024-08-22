@@ -167,7 +167,7 @@ def main(
     print(f"[Info]: Use {device} now!")
 
     # data train
-    path_project = Path('/disk/sean/5glogs/')
+    path_project = Path('../')
     path_data_1 = Path('data.hangover/trip_1.forward/')
     path_rawlogs_list_1 = [path_project / path_data_1 / Path(f'qmdl_{i}.qmdl') for i in range(1, 20+1)]
     path_data_2 = Path('data.hangover/trip_1.backward/')
