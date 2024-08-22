@@ -3,9 +3,11 @@ from typing import Sequence
 import numpy as np
 import pandas as pd
 
+CHUNK_SIZE = 200
+
 # LOG_LENGTH = 5480 # len(max(logs_list, key=len)) == 5480
 # LOG_LENGTH = 2560 # for hangover dataset
-LOG_LENGTH = 100 # for hangover dataset 2
+LOG_LENGTH = 1000 # for hangover dataset 2
 
 class QmdlLogsHelper:
     def __init__(self, qmdl_paths: Sequence[Path]):

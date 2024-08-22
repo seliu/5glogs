@@ -1,7 +1,8 @@
 from pathlib import Path
 from sklearn.model_selection import train_test_split
 from typing import Sequence
-from torch.utils.data import Dataset
+from torch.utils.data import DataLoader, Dataset
+from torchsampler import ImbalancedDatasetSampler
 from utils import LOG_LENGTH, QmdlLogsHelper
 import numpy as np
 
@@ -72,24 +73,36 @@ class QmdlDataset(Dataset):
         label = self.data_y[idx]
         return logs_float_array, label
 
+    #
+    # required by torchsampler.ImbalancedDatasetSampler
+    #
+    def get_labels(self):
+        return self.data_y
+
+
 if __name__ == '__main__':
     path_project = Path('/disk/sean/5glogs/')
-    path_data_1 = Path('data.hangover/trip_1.forward/')
-    path_rawlogs_list_1 = [path_project / path_data_1 / Path(f'qmdl_{i}.qmdl') for i in range(1, 20+1)]
-    path_data_2 = Path('data.hangover/trip_1.backward/')
-    path_rawlogs_list_2 = [path_project / path_data_2 / Path(f'qmdl_{i}.qmdl') for i in range(1, 23+1)]
-    path_rawlogs_list = path_rawlogs_list_1 + path_rawlogs_list_2
-    assert len(path_rawlogs_list) == 43
-    ds_train = QmdlDataset(path_rawlogs_list, chunk_size=100, negative_ratio=100)
-    x_train, y_train = ds_train.__getitem__(0)
-    print(x_train, y_train, ds_train.__len__())
+    
+    # path_data_1 = Path('data.hangover/trip_1.forward/')
+    # path_rawlogs_list_1 = [path_project / path_data_1 / Path(f'qmdl_{i}.qmdl') for i in range(1, 20+1)]
+    # path_data_2 = Path('data.hangover/trip_1.backward/')
+    # path_rawlogs_list_2 = [path_project / path_data_2 / Path(f'qmdl_{i}.qmdl') for i in range(1, 23+1)]
+    # path_rawlogs_list = path_rawlogs_list_1 + path_rawlogs_list_2
+    # assert len(path_rawlogs_list) == 43
+    # ds_train = QmdlDataset(path_rawlogs_list, chunk_size=100, negative_ratio=100)
+    # x_train, y_train = ds_train.__getitem__(0)
+    # print(x_train, y_train, ds_train.__len__())
 
     path_data_3 = Path('data.hangover/trip_2.samples/')
-    path_rawlogs_list_3 = sorted((path_project / path_data_3).glob('*.qmdl')); len(path_rawlogs_list_3)
+    path_rawlogs_list_3 = sorted((path_project / path_data_3).glob('*.qmdl'))
     assert len(path_rawlogs_list_3) == 3
-    ds_test = QmdlDataset(path_rawlogs_list_3, chunk_size=100, negative_ratio=0)
+    ds_test = QmdlDataset(path_rawlogs_list_3, chunk_size=100, negative_ratio=100)
     x_test, y_test = ds_test.__getitem__(0)
     print(x_test, y_test, ds_test.__len__())
+
+    dl_test = DataLoader(ds_test, sampler=ImbalancedDatasetSampler(ds_test), batch_size=16)
+    x_test, y_test = next(iter(dl_test))
+    print(x_test.shape, y_test)
 
     # data_item, label = dataset.__getitem__(0)
     # print(dataset.__len__(), data_item.shape, label, type(label))

@@ -1,10 +1,11 @@
-from data import QmdlDataset
+from data_ho_2 import QmdlDataset
 from pathlib import Path
 from tqdm import tqdm
+from torchsampler import ImbalancedDatasetSampler
 from torch.optim import AdamW, Optimizer
 from torch.optim.lr_scheduler import LambdaLR
 from torch.utils.data import DataLoader, random_split
-from utils import LOG_LENGTH
+from utils import CHUNK_SIZE, LOG_LENGTH
 import math
 import torch
 import torch.nn as nn
@@ -165,13 +166,24 @@ def main(
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"[Info]: Use {device} now!")
 
-    path_project = "/disk/sean/5glogs"
-    path_file = "sa_ho_event.qmdl"
-    qmdl_logs_path = Path(path_project) / Path(path_file)
-    ds_train = QmdlDataset(qmdl_logs_path, split='train')
-    ds_test = QmdlDataset(qmdl_logs_path, split='test')
-    dl_train = DataLoader(ds_train, batch_size=8, shuffle=True)
-    dl_test = DataLoader(ds_test, batch_size=2, shuffle=False)
+    # data train
+    path_project = Path('/disk/sean/5glogs/')
+    path_data_1 = Path('data.hangover/trip_1.forward/')
+    path_rawlogs_list_1 = [path_project / path_data_1 / Path(f'qmdl_{i}.qmdl') for i in range(1, 20+1)]
+    path_data_2 = Path('data.hangover/trip_1.backward/')
+    path_rawlogs_list_2 = [path_project / path_data_2 / Path(f'qmdl_{i}.qmdl') for i in range(1, 23+1)]
+    path_rawlogs_list = path_rawlogs_list_1 + path_rawlogs_list_2
+    assert len(path_rawlogs_list) == 43
+    ds_train = QmdlDataset(path_rawlogs_list, chunk_size=CHUNK_SIZE, negative_ratio=100)
+    dl_train = DataLoader(ds_train, sampler=ImbalancedDatasetSampler(ds_train), batch_size=16)
+
+    # data test
+    path_test_data = Path('data.hangover/trip_2.samples/')
+    path_test_rawlogs_list = sorted((path_project / path_test_data).glob('*.qmdl'))
+    assert len(path_test_rawlogs_list) == 3
+    ds_test = QmdlDataset(path_test_rawlogs_list, chunk_size=CHUNK_SIZE, negative_ratio=0)
+    dl_test = DataLoader(ds_test, batch_size=8)
+
     train_iterator = iter(dl_train)
     print(f"[Info]: Finish loading data!",flush = True)
 
