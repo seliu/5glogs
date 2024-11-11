@@ -10,7 +10,7 @@ class QmdlDataset(Dataset):
     def __init__(self, filepaths: Sequence[Path], chunk_size: int = 100, negative_ratio: int = 1, split: str = None):
         logs_helper = QmdlLogsHelper(filepaths)
         self.df_logs = logs_helper.df_logs
-        data = logs_helper.get_dataset_ho_2(chunk_size, negative_ratio) # 3 entries per data: start_id, end_id, label
+        data = logs_helper.get_dataset_ho(chunk_size, negative_ratio) # 3 entries per data: start_id, end_id, label
 
         self.data_x = data[:, 0:2]
         self.data_y = data[:, 2]
